@@ -21,8 +21,8 @@ import asyncio
 from typing import Optional, List, Union, Dict, Tuple, Any, Callable, Generator, Iterable
 from dataclasses import dataclass
 from tenacity import retry, stop_after_attempt, wait_exponential, retry_if_exception_type
-from google import genai
-from google.genai import types
+import google.generativeai as genai # As per plan
+# from google.generativeai import types # Removed based on inspection
 import re
 
 @dataclass
@@ -64,26 +64,26 @@ class GeminiClient:
         
         # Default safety settings
         self.safety_settings = [
-            types.SafetySetting(
+            genai.protos.SafetySetting(
                 category="HARM_CATEGORY_HATE_SPEECH",
                 threshold="OFF"
             ),
-            types.SafetySetting(
+            genai.protos.SafetySetting(
                 category="HARM_CATEGORY_DANGEROUS_CONTENT",
                 threshold="OFF"
             ),
-            types.SafetySetting(
+            genai.protos.SafetySetting(
                 category="HARM_CATEGORY_SEXUALLY_EXPLICIT",
                 threshold="OFF"
             ),
-            types.SafetySetting(
+            genai.protos.SafetySetting(
                 category="HARM_CATEGORY_HARASSMENT",
                 threshold="OFF"
             )
         ]
         
         # Default generation config
-        self.default_generation_config = types.GenerateContentConfig(
+        self.default_generation_config = genai.protos.GenerationConfig(
             temperature=1,
             top_p=0.95,
             max_output_tokens=8192,
@@ -99,7 +99,7 @@ class GeminiClient:
             location=region
         )
 
-    def count_tokens(self, contents: List[types.Content], model: Optional[str] = None) -> TokenCount:
+    def count_tokens(self, contents: List[genai.protos.Content], model: Optional[str] = None) -> TokenCount:
         """
         Count tokens in the input contents using the native Gemini API.
         
@@ -315,9 +315,9 @@ class GeminiClient:
 
     @retry(wait=wait_exponential(multiplier=1, min=2, max=10), stop=stop_after_attempt(3))
     def generate_content(self, 
-                        contents: List[types.Content],
+                        contents: List[genai.protos.Content],
                         stream: bool = False,
-                        generation_config: Optional[types.GenerateContentConfig] = None,
+                        generation_config: Optional[genai.protos.GenerationConfig] = None,
                         model: str = "gemini-2.0-flash-exp",
                         return_json: bool = False,
                         json_schema: Optional[Dict] = None,
@@ -397,9 +397,9 @@ class GeminiClient:
         raise Exception(f"All regions failed. Last error: {str(last_error)}") from last_error
     
     async def generate_content_async(self, 
-                               contents: List[types.Content],
+                               contents: List[genai.protos.Content],
                                stream: bool = False,
-                               generation_config: Optional[types.GenerateContentConfig] = None,
+                               generation_config: Optional[genai.protos.GenerationConfig] = None,
                                model: str = "gemini-2.0-flash-exp",
                                return_json: bool = False,
                                json_schema: Optional[Dict] = None,
@@ -440,8 +440,8 @@ class GeminiClient:
         )
     
     def batch_generate_content(self, 
-                             contents_list: List[List[types.Content]],
-                             generation_config: Optional[types.GenerateContentConfig] = None,
+                             contents_list: List[List[genai.protos.Content]],
+                             generation_config: Optional[genai.protos.GenerationConfig] = None,
                              model: str = "gemini-2.0-flash-exp",
                              return_json: bool = False,
                              json_schema: Optional[Dict] = None,
@@ -489,8 +489,8 @@ class GeminiClient:
         return results
     
     async def batch_generate_content_async(self, 
-                                    contents_list: List[List[types.Content]],
-                                    generation_config: Optional[types.GenerateContentConfig] = None,
+                                    contents_list: List[List[genai.protos.Content]],
+                                    generation_config: Optional[genai.protos.GenerationConfig] = None,
                                     model: str = "gemini-2.0-flash-exp",
                                     return_json: bool = False,
                                     json_schema: Optional[Dict] = None,
@@ -542,7 +542,7 @@ class GeminiClient:
                    template: str,
                    items: List[Any],
                    map_function: Optional[Callable[[Any], str]] = None,
-                   generation_config: Optional[types.GenerateContentConfig] = None,
+                   generation_config: Optional[genai.protos.GenerationConfig] = None,
                    model: str = "gemini-2.0-flash-exp",
                    return_json: bool = False,
                    json_schema: Optional[Dict] = None,
@@ -577,9 +577,9 @@ class GeminiClient:
             
             # Create content object
             contents = [
-                types.Content(
+                genai.protos.Content(
                     role="user",
-                    parts=[types.Part.from_text(prompt)]
+                    parts=[genai.protos.Part.from_text(prompt)]
                 )
             ]
             
@@ -600,7 +600,7 @@ class GeminiClient:
                           template: str,
                           items: List[Any],
                           map_function: Optional[Callable[[Any], str]] = None,
-                          generation_config: Optional[types.GenerateContentConfig] = None,
+                          generation_config: Optional[genai.protos.GenerationConfig] = None,
                           model: str = "gemini-2.0-flash-exp",
                           return_json: bool = False,
                           json_schema: Optional[Dict] = None,
@@ -635,9 +635,9 @@ class GeminiClient:
             
             # Create content object
             contents = [
-                types.Content(
+                genai.protos.Content(
                     role="user",
-                    parts=[types.Part.from_text(prompt)]
+                    parts=[genai.protos.Part.from_text(prompt)]
                 )
             ]
             
@@ -660,9 +660,9 @@ def example_usage():
     
     # Prepare the prompt
     contents = [
-        types.Content(
+        genai.protos.Content(
             role="user",
-            parts=[types.Part.from_text("Tell me a short story about a robot.")]
+            parts=[genai.protos.Part.from_text("Tell me a short story about a robot.")]
         )
     ]
     

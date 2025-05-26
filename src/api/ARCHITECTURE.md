@@ -295,3 +295,10 @@ The API handles various error scenarios:
 4. **Custom Prompt Templates**: Allow users to provide custom prompt templates
 5. **Batch Processing**: Support batch processing of multiple app listings
 6. **Feedback Loop**: Implement a feedback mechanism to improve analysis quality
+
+## API Documentation
+
+This FastAPI application automatically generates interactive API documentation using Swagger UI and serves the OpenAPI schema.
+
+-   **Swagger UI**: Available at the `/docs` endpoint when the application is running. This interface allows you to explore and test the API endpoints interactively in your browser.
+-   **OpenAPI Schema**: The raw OpenAPI v3 schema is available at the `/openapi.json` endpoint.

@@ -3,13 +3,12 @@ import logging
 from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel, Field
 from typing import Any, List, Dict, Optional
-from google import genai
-from google.genai import types
+import google.generativeai as genai # As per plan
+# from google.generativeai import types # Removed based on inspection
 from dotenv import load_dotenv
 
 # Import the GeminiClient from the local vertex_libs file
-# Using absolute import when running directly from src/api directory
-from vertex_libs import GeminiClient, TokenCount 
+from .vertex_libs import GeminiClient, TokenCount # Relative import confirmed
 
 # Load environment variables from a .env file if it exists
 load_dotenv()
@@ -208,10 +207,10 @@ async def analyze_content(request: AnalyzeRequest):
     logger.info(f"Received request for /analyze with prompt: {request.prompt[:50]}...")
 
     # Convert the request prompt into the format expected by GeminiClient
-    contents: List[types.Content] = [
-        types.Content(
+    contents: List[genai.protos.Content] = [
+        genai.protos.Content(
             role="user",
-            parts=[types.Part(text=request.prompt)]
+            parts=[genai.protos.Part(text=request.prompt)]
         )
     ]
 
@@ -347,10 +346,10 @@ Now, analyze the following app listing:
     full_prompt = context + filled_prompt
     
     # Create the content for Vertex AI
-    contents: List[types.Content] = [
-        types.Content(
+    contents: List[genai.protos.Content] = [
+        genai.protos.Content(
             role="user",
-            parts=[types.Part(text=full_prompt)]
+            parts=[genai.protos.Part(text=full_prompt)]
         )
     ]
     
