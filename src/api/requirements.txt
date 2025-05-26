@@ -1,0 +1,5 @@
+fastapi
+uvicorn[standard]
+google-generativeai
+tenacity
+python-dotenv # Useful for managing environment variables like GCP_PROJECT
