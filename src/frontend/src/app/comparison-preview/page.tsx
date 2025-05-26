@@ -28,6 +28,9 @@ interface ComparisonData {
   target: AppListing | null;
 }
 
+// Store the analysis results globally to persist across navigation
+let globalAnalysisResults: any = null;
+
 function ComparisonPreviewContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -41,6 +44,7 @@ function ComparisonPreviewContent() {
   const targetCountry = searchParams.get('targetCountry') || 'BR';
   
   const [loading, setLoading] = useState(true);
+  const [analyzing, setAnalyzing] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [comparisonData, setComparisonData] = useState<ComparisonData>({
     source: null,
@@ -77,25 +81,78 @@ function ComparisonPreviewContent() {
     fetchBothListings();
   }, [sourceUrl, sourceLanguage, sourceCountry, targetUrl, targetLanguage, targetCountry]);
   
-  const handleAnalyze = () => {
-    // Store the comparison data in localStorage
-    if (comparisonData.source && comparisonData.target) {
-      localStorage.setItem('comparisonData', JSON.stringify({
-        source: {
-          data: comparisonData.source,
+  const handleAnalyze = async () => {
+    if (!comparisonData.source || !comparisonData.target) {
+      setError('Missing comparison data. Please try refreshing the page.');
+      return;
+    }
+
+    setAnalyzing(true);
+    setError(null);
+
+    try {
+      console.log('Starting localization comparison analysis...');
+      console.log('Source app:', comparisonData.source.title);
+      console.log('Target app:', comparisonData.target.title);
+
+      // Call the analysis API directly
+      const analysisResults = await apiService.analyzeLocalizationComparison(
+        comparisonData.source,
+        comparisonData.target
+      );
+
+      console.log('Analysis completed successfully');
+      console.log('Analysis results:', analysisResults);
+
+      // Store the results in multiple ways to ensure persistence
+      const resultsData = {
+        results: analysisResults,
+        sourceApp: {
+          title: comparisonData.source.title,
           language: sourceLanguage,
-          country: sourceCountry,
-          url: sourceUrl
+          country: sourceCountry
         },
-        target: {
-          data: comparisonData.target,
+        targetApp: {
+          title: comparisonData.target.title,
           language: targetLanguage,
-          country: targetCountry,
-          url: targetUrl
-        }
-      }));
-      
+          country: targetCountry
+        },
+        timestamp: Date.now()
+      };
+
+      // Store in global variable
+      globalAnalysisResults = resultsData;
+
+      // Store in sessionStorage (more reliable than localStorage for single-tab)
+      try {
+        sessionStorage.setItem('comparisonResults', JSON.stringify(resultsData));
+        console.log('Results stored in sessionStorage');
+      } catch (e) {
+        console.error('Failed to store in sessionStorage:', e);
+      }
+
+      // Also try localStorage as backup
+      try {
+        localStorage.setItem('comparisonResults', JSON.stringify(resultsData));
+        console.log('Results stored in localStorage');
+      } catch (e) {
+        console.error('Failed to store in localStorage:', e);
+      }
+
+      // Verify storage
+      const verifySession = sessionStorage.getItem('comparisonResults');
+      const verifyLocal = localStorage.getItem('comparisonResults');
+      console.log('Verification - sessionStorage:', verifySession ? 'Data found' : 'No data');
+      console.log('Verification - localStorage:', verifyLocal ? 'Data found' : 'No data');
+
+      // Navigate to results page
+      console.log('Navigating to results page...');
       router.push('/comparison-results');
+
+    } catch (err) {
+      console.error('Error during analysis:', err);
+      setError('Failed to analyze localization comparison. Please try again.');
+      setAnalyzing(false);
     }
   };
   
@@ -201,6 +258,17 @@ function ComparisonPreviewContent() {
         <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: '50vh' }}>
           <CircularProgress sx={{ mb: 2 }} />
           <Typography>Loading app listings for comparison...</Typography>
+        </Box>
+      ) : analyzing ? (
+        <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: '50vh' }}>
+          <CircularProgress sx={{ mb: 2 }} />
+          <Typography variant="h6" gutterBottom>Analyzing Localization Comparison</Typography>
+          <Typography variant="body2" color="text.secondary" align="center">
+            Comparing {comparisonData.source?.title} vs {comparisonData.target?.title}
+          </Typography>
+          <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>
+            This may take 15-30 seconds...
+          </Typography>
         </Box>
       ) : error ? (
         <Alert severity="error" sx={{ mb: 4 }}>
@@ -314,6 +382,7 @@ function ComparisonPreviewContent() {
               variant="outlined" 
               startIcon={<CancelIcon />}
               onClick={() => router.push('/')}
+              disabled={analyzing}
             >
               Cancel
             </Button>
@@ -323,6 +392,7 @@ function ComparisonPreviewContent() {
                 sx={{ mr: 2 }} 
                 startIcon={<ArrowBackIcon />}
                 onClick={handleEditParams}
+                disabled={analyzing}
               >
                 Edit Parameters
               </Button>
@@ -333,9 +403,9 @@ function ComparisonPreviewContent() {
                 size="large"
                 startIcon={<AnalyticsIcon />}
                 onClick={handleAnalyze}
-                disabled={!comparisonData.source || !comparisonData.target}
+                disabled={!comparisonData.source || !comparisonData.target || analyzing}
               >
-                Analyze Localization
+                {analyzing ? 'Analyzing...' : 'Analyze Localization'}
               </Button>
             </Box>
           </Box>
@@ -344,6 +414,9 @@ function ComparisonPreviewContent() {
     </Box>
   );
 }
+
+// Export the global results for the results page
+export { globalAnalysisResults };
 
 export default function ComparisonPreviewPage() {
   return (

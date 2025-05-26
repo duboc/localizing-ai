@@ -1,88 +1,90 @@
 # Active Context
 
-*This document tracks the current focus, recent changes, and immediate next steps.*
+## Current Status (5/26/2025, 12:17 PM)
 
-## Current Focus
+### Side-by-Side Comparison Feature Implementation
 
--   Improving documentation and diagrams to better reflect the product flow.
--   Ensuring all components work together seamlessly in the defined flow.
--   Preparing for future enhancements to error handling and caching.
+#### ✅ Completed
+1. **Frontend UI Components**
+   - Toggle button for switching between single and comparison modes
+   - Dual form inputs for source and target app URLs
+   - Side-by-side preview page showing both apps before analysis
+   - Comprehensive results page with 7 tabs for different analysis aspects
+   - Proper data flow between pages (with multi-storage approach)
 
-## Recent Changes
+2. **Backend API Endpoint**
+   - `/analyze-comparison` endpoint successfully created
+   - Accepts source and target app data
+   - Returns LocalizationComparisonResult structure
+   - Uses `localization_comparison.md` prompt template
 
--   Created `src/prompts/` directory with localization criteria and prompt templates.
--   Set up Next.js project in `src/frontend/` with TypeScript and Material UI.
--   Implemented Google-like theme with Material UI components.
--   Created layout components (Header, Footer, Layout).
--   Implemented URL input form for Google Play app listings.
--   Created results page with tabbed interface for displaying audit results.
--   Set up API service with mock data for development.
--   Implemented navigation between home and results pages.
--   Created a new scraper API in `src/scraper/` using FastAPI and Playwright.
--   Implemented scraping logic to extract app information from Google Play listings.
--   Added language and country detection to the scraper API.
--   Updated the frontend to confirm language and country with the user.
--   Implemented the complete flow from URL submission to analysis results.
--   Fixed TypeScript and ESLint issues in the frontend code.
--   Integrated Vertex AI for analyzing app listing data using the prompt templates.
--   Enhanced the scraper API to extract more detailed information including:
-     - Ratings distribution
-     - In-app purchase details
-     - Developer contact information
-     - Privacy policy URL
-     - App permissions
-     - Supported devices and OS requirements
-     - Update history
--   Updated the frontend API service to handle the enhanced data.
--   **Improved system documentation with detailed flow diagrams**:
-     - Added sequence diagram showing the exact flow of operations
-     - Added component interaction diagram showing how different parts work together
-     - Added data flow diagram showing how information moves through the system
-     - Updated the user flow documentation with more detailed steps
--   **Updated the main README.md** with comprehensive project information:
-     - Added project overview and features
-     - Included system flow diagram
-     - Added project structure documentation
-     - Provided detailed setup and installation instructions
+3. **Data Persistence**
+   - Implemented multi-storage approach (global variable, sessionStorage, localStorage)
+   - Added comprehensive debug logging
+   - Fixed navigation and data flow issues
 
-## Next Steps
+#### 🔧 Current Issue
+The comparison feature is returning results but with empty detailed scores. The API returns:
+- Overall score: 70/100 ✓
+- Executive summary: Present ✓
+- Detailed scores: Empty (showing "%" without values) ✗
+- Detailed analysis content: Missing ✗
 
-1.  Implement error handling and rate limiting in the scraper API:
-    - Add retry mechanisms for transient failures
-    - Implement proper error messages for different failure scenarios
-    - Add rate limiting to avoid overloading the Google Play Store
-2.  Add caching mechanism to avoid repeated scraping of the same app:
-    - Implement a simple caching system based on app ID, language, and country
-    - Set appropriate cache expiration times
-    - Add cache invalidation mechanism
-3.  Enhance the user interface with more visual feedback:
-    - Add progress indicators during the scraping and analysis phases
-    - Improve the language/country confirmation dialog with more information
-    - Add visual indicators for the analysis results
-4.  Implement export functionality for audit reports:
-    - Add PDF export option
-    - Add CSV export for tabular data
-    - Add email sharing functionality
-5.  Add more detailed recommendations based on audit results:
-    - Provide specific examples of good practices
-    - Include before/after examples for improvements
-    - Add links to relevant resources
+#### 💡 Root Cause Analysis
+The single API call approach isn't generating comprehensive results because:
+1. The prompt is too broad to generate detailed analysis for all aspects
+2. The model may be overwhelmed with analyzing everything at once
+3. Different aspects (translation, cultural, technical, visual) require specialized analysis
 
-## Active Decisions & Considerations
+#### 🎯 Solution: Multi-Call Architecture
+Instead of one comprehensive call, implement specialized analysis calls:
 
--   Using Next.js with Material UI for the frontend to create a Google-like experience.
--   Using FastAPI and Playwright for the scraper API to handle dynamic content on Google Play.
--   Organizing localization criteria into categories (Content Quality, Language Quality, Visual Elements, Localization Specifics).
--   Using a tabbed interface for displaying different aspects of the audit results.
--   Implementing a service layer for API communication to make it easier to switch between mock data and real API.
--   Using environment variables for configuration to support different environments.
--   Separating the scraper API from the Vertex AI API to allow for independent scaling and maintenance.
+1. **Translation Analysis Call**
+   - Focus: Text completeness and quality
+   - Compare titles, descriptions, all text elements
+   - Return: translation_completeness and translation_quality scores
 
-## Learnings & Insights
+2. **Cultural Adaptation Call**
+   - Focus: Cultural appropriateness and localization
+   - Analyze currency, dates, cultural references
+   - Return: cultural_adaptation scores
 
--   Material UI provides a comprehensive set of components for creating a Google-like interface.
--   Next.js App Router provides a good structure for organizing pages and components.
--   Separating the API service from the components makes it easier to switch between mock data and real API.
--   Using TypeScript interfaces for API responses helps ensure type safety and better code completion.
--   Playwright is a powerful tool for scraping dynamic content from websites.
--   Structuring the project with separate services (frontend, scraper API, Vertex AI API) allows for better scalability and maintenance.
+3. **Technical Localization Call**
+   - Focus: Technical formatting and standards
+   - Check date formats, number formats, units
+   - Return: technical_localization scores
+
+4. **Visual Analysis Call**
+   - Focus: Screenshots and visual elements
+   - Check for untranslated text in images
+   - Return: visual_localization scores
+
+5. **SEO/ASO Analysis Call**
+   - Focus: Keyword optimization and character usage
+   - Compare search optimization between versions
+   - Return: seo_aso_optimization scores
+
+6. **Synthesis Call**
+   - Combine all previous results
+   - Generate overall score and recommendations
+   - Return: Complete LocalizationComparisonResult
+
+### Next Steps
+1. Create specialized prompt templates for each analysis type
+2. Modify the comparison endpoint to make multiple calls
+3. Aggregate results from all calls into final response
+4. Add progress indicators for multi-step analysis
+
+### Important Patterns
+- Use specialized, focused prompts for better AI responses
+- Break complex analysis into manageable chunks
+- Provide clear JSON structure examples in prompts
+- Use appropriate models for different tasks (flash for speed, preview for quality)
+
+### Key Decisions
+- Multi-call approach chosen over single comprehensive call
+- Specialized analysis provides better quality results
+- Trade-off: Slower but more accurate and detailed analysis
+
+### Current Focus
+Implementing the multi-call architecture to get complete analysis results with all detailed scores populated.

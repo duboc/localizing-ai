@@ -7,9 +7,10 @@ import Footer from './Footer';
 
 interface LayoutProps {
   children: ReactNode;
+  actionButtons?: ReactNode;
 }
 
-export default function Layout({ children }: LayoutProps) {
+export default function Layout({ children, actionButtons }: LayoutProps) {
   return (
     <Box
       sx={{
@@ -18,7 +19,7 @@ export default function Layout({ children }: LayoutProps) {
         minHeight: '100vh',
       }}
     >
-      <Header />
+      <Header actionButtons={actionButtons} />
       <Container 
         component="main" 
         maxWidth="lg" 

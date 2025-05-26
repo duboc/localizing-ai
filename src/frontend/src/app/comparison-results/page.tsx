@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect, Suspense } from 'react';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { 
   Box, 
   Typography, 
@@ -33,6 +33,7 @@ import ArrowBackIcon from '@mui/icons-material/ArrowBack';
 import HomeIcon from '@mui/icons-material/Home';
 import Layout from '../../components/layout/Layout';
 import apiService, { LocalizationComparisonResult } from '../../services/api';
+import { globalAnalysisResults } from '../comparison-preview/page';
 
 interface TabPanelProps {
   children?: React.ReactNode;
@@ -63,44 +64,99 @@ function TabPanel(props: TabPanelProps) {
 
 function ComparisonResultsContent() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [tabValue, setTabValue] = useState(0);
   const [results, setResults] = useState<LocalizationComparisonResult | null>(null);
+  const [comparisonInfo, setComparisonInfo] = useState<{
+    sourceApp: { title: string; language: string; country: string };
+    targetApp: { title: string; language: string; country: string };
+  } | null>(null);
   
   useEffect(() => {
-    const fetchResults = async () => {
+    const loadResults = async () => {
       try {
-        // Get the comparison data from localStorage
-        const storedData = localStorage.getItem('comparisonData');
-        if (!storedData) {
-          setError('No comparison data found');
+        console.log('ComparisonResults: Loading precomputed results...');
+        
+        let resultData = null;
+        
+        // Try method 1: Global variable
+        if (globalAnalysisResults) {
+          console.log('ComparisonResults: Found results in global variable');
+          resultData = globalAnalysisResults;
+        }
+        
+        // Try method 2: sessionStorage
+        if (!resultData) {
+          const sessionData = sessionStorage.getItem('comparisonResults');
+          if (sessionData) {
+            console.log('ComparisonResults: Found results in sessionStorage');
+            try {
+              resultData = JSON.parse(sessionData);
+            } catch (e) {
+              console.error('Error parsing sessionStorage data:', e);
+            }
+          }
+        }
+        
+        // Try method 3: localStorage
+        if (!resultData) {
+          const localData = localStorage.getItem('comparisonResults');
+          if (localData) {
+            console.log('ComparisonResults: Found results in localStorage');
+            try {
+              resultData = JSON.parse(localData);
+            } catch (e) {
+              console.error('Error parsing localStorage data:', e);
+            }
+          }
+        }
+        
+        if (!resultData) {
+          console.log('ComparisonResults: No precomputed results found in any storage');
+          console.log('- Global variable:', globalAnalysisResults ? 'has data' : 'empty');
+          console.log('- SessionStorage:', sessionStorage.getItem('comparisonResults') ? 'has data' : 'empty');
+          console.log('- LocalStorage:', localStorage.getItem('comparisonResults') ? 'has data' : 'empty');
+          setError('No analysis results found. Please start a new comparison from the home page.');
           setLoading(false);
           return;
         }
         
-        const comparisonData = JSON.parse(storedData);
+        // Validate the data structure
+        if (!resultData.results) {
+          console.error('ComparisonResults: Invalid results structure:', resultData);
+          setError('Incomplete results data. Please start a new comparison.');
+          setLoading(false);
+          return;
+        }
         
-        // Clear the stored data
-        localStorage.removeItem('comparisonData');
+        console.log('ComparisonResults: Loading results for comparison');
+        console.log('Source app:', resultData.sourceApp?.title || 'Unknown');
+        console.log('Target app:', resultData.targetApp?.title || 'Unknown');
         
-        // Analyze the comparison
-        const analysisResults = await apiService.analyzeLocalizationComparison(
-          comparisonData.source.data,
-          comparisonData.target.data
-        );
+        // Clear all stored results after retrieving them
+        sessionStorage.removeItem('comparisonResults');
+        localStorage.removeItem('comparisonResults');
         
-        setResults(analysisResults);
+        // Set the results and comparison info
+        setResults(resultData.results);
+        setComparisonInfo({
+          sourceApp: resultData.sourceApp || { title: 'Source App', language: 'en', country: 'US' },
+          targetApp: resultData.targetApp || { title: 'Target App', language: 'pt', country: 'BR' }
+        });
+        
+        console.log('ComparisonResults: Results loaded successfully');
       } catch (err) {
-        setError('Failed to analyze localization comparison');
-        console.error(err);
+        console.error('ComparisonResults: Error loading results:', err);
+        setError('Failed to load comparison results. Please try again.');
       } finally {
         setLoading(false);
       }
     };
     
-    fetchResults();
-  }, []);
+    loadResults();
+  }, [searchParams]);
   
   const handleTabChange = (event: React.SyntheticEvent, newValue: number) => {
     setTabValue(newValue);
@@ -130,19 +186,48 @@ function ComparisonResultsContent() {
   return (
     <Box sx={{ width: '100%', py: 4 }}>
       {loading ? (
-        <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '50vh' }}>
-          <CircularProgress />
+        <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: '50vh' }}>
+          <CircularProgress sx={{ mb: 2 }} />
+          <Typography>Loading comparison results...</Typography>
         </Box>
       ) : error ? (
-        <Alert severity="error" sx={{ mb: 4 }}>
-          {error}
-        </Alert>
+        <Paper sx={{ p: 3, mb: 4 }}>
+          <Alert severity="error" sx={{ mb: 2 }}>
+            {error}
+          </Alert>
+          <Box sx={{ display: 'flex', gap: 2 }}>
+            <Button 
+              variant="outlined" 
+              startIcon={<HomeIcon />}
+              onClick={() => router.push('/')}
+            >
+              Start New Comparison
+            </Button>
+            <Button 
+              variant="contained" 
+              startIcon={<ArrowBackIcon />}
+              onClick={() => router.back()}
+            >
+              Go Back
+            </Button>
+          </Box>
+        </Paper>
       ) : results ? (
         <>
           <Paper sx={{ p: 3, mb: 4 }}>
             <Typography variant="h4" gutterBottom>
               Localization Comparison Analysis
             </Typography>
+            
+            {comparisonInfo && (
+              <Box sx={{ mb: 3 }}>
+                <Typography variant="h6" color="text.secondary">
+                  {comparisonInfo.sourceApp.title} ({comparisonInfo.sourceApp.language.toUpperCase()}-{comparisonInfo.sourceApp.country})
+                  {' vs '}
+                  {comparisonInfo.targetApp.title} ({comparisonInfo.targetApp.language.toUpperCase()}-{comparisonInfo.targetApp.country})
+                </Typography>
+              </Box>
+            )}
             
             <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, mb: 2 }}>
               <Typography variant="h5">

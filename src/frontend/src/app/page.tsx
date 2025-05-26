@@ -20,12 +20,12 @@ export default function HomePage() {
   };
 
   const handleSingleAuditSubmit = (url: string, useSpecializedEndpoints: boolean) => {
-    // Navigate to confirmation page with URL params
+    // Navigate to preview page with URL params
     const params = new URLSearchParams({
       url,
       specialized: useSpecializedEndpoints.toString()
     });
-    router.push(`/confirm?${params.toString()}`);
+    router.push(`/preview?${params.toString()}`);
   };
 
   return (

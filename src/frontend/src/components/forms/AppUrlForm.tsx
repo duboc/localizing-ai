@@ -8,13 +8,9 @@ import {
   Typography, 
   Paper,
   CircularProgress,
-  Alert,
-  FormControlLabel,
-  Checkbox,
-  Tooltip
+  Alert
 } from '@mui/material';
 import SearchIcon from '@mui/icons-material/Search';
-import HelpOutlineIcon from '@mui/icons-material/HelpOutline';
 
 interface AppUrlFormProps {
   onSubmit: (url: string, useSpecializedEndpoints: boolean) => void;
@@ -24,7 +20,6 @@ interface AppUrlFormProps {
 
 export default function AppUrlForm({ onSubmit, isLoading = false, error = null }: AppUrlFormProps) {
   const [url, setUrl] = useState('');
-  const [useSpecializedEndpoints, setUseSpecializedEndpoints] = useState(false);
   const [validationError, setValidationError] = useState<string | null>(null);
 
   const validateUrl = (input: string): boolean => {
@@ -47,7 +42,7 @@ export default function AppUrlForm({ onSubmit, isLoading = false, error = null }
     }
     
     setValidationError(null);
-    onSubmit(url, useSpecializedEndpoints);
+    onSubmit(url, false);
   };
 
   return (
@@ -85,22 +80,6 @@ export default function AppUrlForm({ onSubmit, isLoading = false, error = null }
           }}
         />
         
-        <Box sx={{ mt: 2, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-          <FormControlLabel
-            control={
-              <Checkbox
-                checked={useSpecializedEndpoints}
-                onChange={(e) => setUseSpecializedEndpoints(e.target.checked)}
-                disabled={isLoading}
-                color="primary"
-              />
-            }
-            label="Use specialized analysis"
-          />
-          <Tooltip title="Performs a more detailed analysis by using specialized AI endpoints for different aspects of the app listing (text, visuals, reviews, permissions, metadata)">
-            <HelpOutlineIcon fontSize="small" color="action" sx={{ ml: 0.5 }} />
-          </Tooltip>
-        </Box>
         
         <Box sx={{ mt: 2, display: 'flex', justifyContent: 'center' }}>
           <Button

@@ -21,12 +21,15 @@ import {
   ListItemText,
   ListItemAvatar,
   Card,
-  CardMedia
+  CardMedia,
+  IconButton,
+  Tooltip
 } from '@mui/material';
 import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
 import AnalyticsIcon from '@mui/icons-material/Analytics';
 import ArrowBackIcon from '@mui/icons-material/ArrowBack';
 import CancelIcon from '@mui/icons-material/Cancel';
+import HomeIcon from '@mui/icons-material/Home';
 import Layout from '../../components/layout/Layout';
 import apiService, { AppListing } from '../../services/api';
 
@@ -423,8 +426,30 @@ export default function PreviewPage() {
           <Typography>Loading...</Typography>
         </Box>
       }>
-        <PreviewContent />
+        <PreviewContentWrapper />
       </Suspense>
+    </Layout>
+  );
+}
+
+function PreviewContentWrapper() {
+  const router = useRouter();
+
+  const handleGoHome = () => {
+    router.push('/');
+  };
+
+  const actionButtons = (
+    <Tooltip title="Go to Home">
+      <IconButton onClick={handleGoHome} color="primary">
+        <HomeIcon />
+      </IconButton>
+    </Tooltip>
+  );
+
+  return (
+    <Layout actionButtons={actionButtons}>
+      <PreviewContent />
     </Layout>
   );
 }

@@ -1,5 +1,8 @@
 fastapi
 uvicorn[standard]
 google-generativeai
+google-genai
 tenacity
 python-dotenv # Useful for managing environment variables like GCP_PROJECT
+httpx # For downloading images from URLs
+Pillow # For image processing and conversion

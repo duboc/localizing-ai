@@ -11,10 +11,17 @@ import {
   CircularProgress,
   Divider,
   Chip,
-  Alert
+  Alert,
+  Button,
+  Tooltip,
+  IconButton
 } from '@mui/material';
+import HomeIcon from '@mui/icons-material/Home';
+import SaveIcon from '@mui/icons-material/Save';
+import ShareIcon from '@mui/icons-material/Share';
 import Layout from '../../components/layout/Layout';
 import apiService, { AnalysisResult } from '../../services/api';
+import { useRouter } from 'next/navigation';
 
 interface TabPanelProps {
   children?: React.ReactNode;
@@ -43,7 +50,12 @@ function TabPanel(props: TabPanelProps) {
   );
 }
 
-function ResultsContent() {
+interface ResultsContentProps {
+  onResultsLoaded: (results: AnalysisResult | null) => void;
+}
+
+function ResultsContent({ onResultsLoaded }: ResultsContentProps) {
+  const router = useRouter();
   const searchParams = useSearchParams();
   const url = searchParams.get('url');
   const language = searchParams.get('language') || 'en';
@@ -65,10 +77,28 @@ function ResultsContent() {
         return;
       }
       
+      // Check for cached results in session storage first
+      const sessionKey = `analysis_${url}_${language}_${country}_${specialized}`;
+      const cachedResults = sessionStorage.getItem(sessionKey);
+      
+      if (cachedResults) {
+        try {
+          const parsedResults = JSON.parse(cachedResults);
+          setResults(parsedResults);
+          onResultsLoaded(parsedResults);
+          setLoading(false);
+          console.log('Using cached analysis results from session storage');
+          return;
+        } catch (e) {
+          console.error('Error parsing cached results:', e);
+        }
+      }
+      
       try {
         // Check if we have scraped data in localStorage
         const storedAppData = localStorage.getItem('scrapedAppData');
         let appData;
+        let analysisResults;
         
         if (storedAppData) {
           // Use the stored data
@@ -80,19 +110,23 @@ function ResultsContent() {
           
           // Send the app data directly to Vertex AI for analysis
           try {
-            const response = await apiService.analyzeAppListingData(appData, language, country, specialized);
-            setResults(response);
-            setLoading(false);
-            return;
+            analysisResults = await apiService.analyzeAppListingData(appData, language, country, specialized);
           } catch (analysisError) {
             console.error('Error analyzing stored app data:', analysisError);
             // If analysis fails, fall back to the regular flow
+            analysisResults = await apiService.analyzeAppUrl(url, language, country, specialized);
           }
+        } else {
+          // If no stored data, use the regular flow
+          analysisResults = await apiService.analyzeAppUrl(url, language, country, specialized);
         }
         
-        // If no stored data or analysis failed, use the regular flow
-        const analysisResults = await apiService.analyzeAppUrl(url, language, country, specialized);
         setResults(analysisResults);
+        onResultsLoaded(analysisResults);
+        
+        // Save results to session storage for future access
+        sessionStorage.setItem(sessionKey, JSON.stringify(analysisResults));
+        
       } catch (err) {
         setError('Failed to fetch analysis results');
         console.error(err);
@@ -102,7 +136,7 @@ function ResultsContent() {
     };
     
     fetchResults();
-  }, [url, language, country, specialized]);
+  }, [url, language, country, specialized, onResultsLoaded]);
   
   const handleTabChange = (event: React.SyntheticEvent, newValue: number) => {
     setTabValue(newValue);
@@ -120,6 +154,48 @@ function ResultsContent() {
     return <Chip label={status} color={color} size="small" />;
   };
 
+  const handleGoHome = () => {
+    router.push('/');
+  };
+
+  const handleSaveResults = () => {
+    if (!results) return;
+    
+    const dataStr = JSON.stringify(results, null, 2);
+    const dataBlob = new Blob([dataStr], { type: 'application/json' });
+    const url = URL.createObjectURL(dataBlob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `localization-analysis-${results.appTitle.replace(/[^a-z0-9]/gi, '_').toLowerCase()}.json`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+  };
+
+  const handleShareResults = async () => {
+    if (!results || !url) return;
+    
+    const shareData = {
+      title: `Localization Analysis: ${results.appTitle}`,
+      text: `Check out this localization analysis for ${results.appTitle}. Overall score: ${results.score}/10`,
+      url: window.location.href,
+    };
+
+    try {
+      if (navigator.share && navigator.canShare && navigator.canShare(shareData)) {
+        await navigator.share(shareData);
+      } else {
+        // Fallback: copy URL to clipboard
+        await navigator.clipboard.writeText(window.location.href);
+        // You could show a toast notification here
+        console.log('Results URL copied to clipboard');
+      }
+    } catch (error) {
+      console.error('Error sharing:', error);
+    }
+  };
+
   return (
     <Box sx={{ width: '100%', py: 4 }}>
         {loading ? (
@@ -133,9 +209,31 @@ function ResultsContent() {
         ) : results ? (
           <>
             <Paper sx={{ p: 3, mb: 4 }}>
-              <Typography variant="h4" gutterBottom>
-                Localization Audit Results
-              </Typography>
+              <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', mb: 2 }}>
+                <Typography variant="h4" gutterBottom>
+                  Localization Audit Results
+                </Typography>
+                
+                <Box sx={{ display: 'flex', gap: 1 }}>
+                  <Tooltip title="Go to Home">
+                    <IconButton onClick={handleGoHome} color="primary">
+                      <HomeIcon />
+                    </IconButton>
+                  </Tooltip>
+                  
+                  <Tooltip title="Save Results">
+                    <IconButton onClick={handleSaveResults} color="primary">
+                      <SaveIcon />
+                    </IconButton>
+                  </Tooltip>
+                  
+                  <Tooltip title="Share Results">
+                    <IconButton onClick={handleShareResults} color="primary">
+                      <ShareIcon />
+                    </IconButton>
+                  </Tooltip>
+                </Box>
+              </Box>
               
               <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 1 }}>
                 <Typography variant="subtitle1" color="text.secondary">
@@ -355,8 +453,84 @@ export default function ResultsPage() {
           <Typography>Loading...</Typography>
         </Box>
       }>
-        <ResultsContent />
+        <ResultsContentWrapper />
       </Suspense>
+    </Layout>
+  );
+}
+
+function ResultsContentWrapper() {
+  const router = useRouter();
+  const searchParams = useSearchParams();
+  const url = searchParams.get('url');
+  const [results, setResults] = useState<AnalysisResult | null>(null);
+
+  const handleGoHome = () => {
+    router.push('/');
+  };
+
+  const handleSaveResults = () => {
+    if (!results) return;
+    
+    const dataStr = JSON.stringify(results, null, 2);
+    const dataBlob = new Blob([dataStr], { type: 'application/json' });
+    const url = URL.createObjectURL(dataBlob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `localization-analysis-${results.appTitle.replace(/[^a-z0-9]/gi, '_').toLowerCase()}.json`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+  };
+
+  const handleShareResults = async () => {
+    if (!results || !url) return;
+    
+    const shareData = {
+      title: `Localization Analysis: ${results.appTitle}`,
+      text: `Check out this localization analysis for ${results.appTitle}. Overall score: ${results.score}/10`,
+      url: window.location.href,
+    };
+
+    try {
+      if (navigator.share && navigator.canShare && navigator.canShare(shareData)) {
+        await navigator.share(shareData);
+      } else {
+        // Fallback: copy URL to clipboard
+        await navigator.clipboard.writeText(window.location.href);
+        console.log('Results URL copied to clipboard');
+      }
+    } catch (error) {
+      console.error('Error sharing:', error);
+    }
+  };
+
+  const actionButtons = results ? (
+    <>
+      <Tooltip title="Go to Home">
+        <IconButton onClick={handleGoHome} color="primary">
+          <HomeIcon />
+        </IconButton>
+      </Tooltip>
+      
+      <Tooltip title="Save Results">
+        <IconButton onClick={handleSaveResults} color="primary">
+          <SaveIcon />
+        </IconButton>
+      </Tooltip>
+      
+      <Tooltip title="Share Results">
+        <IconButton onClick={handleShareResults} color="primary">
+          <ShareIcon />
+        </IconButton>
+      </Tooltip>
+    </>
+  ) : null;
+
+  return (
+    <Layout actionButtons={actionButtons}>
+      <ResultsContent onResultsLoaded={setResults} />
     </Layout>
   );
 }
